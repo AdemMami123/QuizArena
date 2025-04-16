@@ -89,16 +89,35 @@ export default function Home() {
           className="text-lg mb-8 text-card-foreground/90"
           variants={itemVariants}
         >
-          Test your knowledge with this 30-second per question challenge. 
-          Answer quickly and accurately to get the highest score!
+          Test your knowledge with our timed quiz challenges! 
+          Play the default quiz, create your own custom quiz, or join one created by a friend.
         </motion.p>
+        
+        <motion.div 
+          className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6"
+          variants={itemVariants}
+        >
+          <Link 
+            href="/quiz" 
+            className="btn btn-glow py-3 px-4 text-lg shadow-md"
+          >
+            Start Default Quiz
+          </Link>
+          
+          <Link 
+            href="/create" 
+            className="btn btn-primary py-3 px-4 text-lg shadow-md"
+          >
+            Create Custom Quiz
+          </Link>
+        </motion.div>
         
         <motion.div variants={itemVariants}>
           <Link 
-            href="/quiz" 
-            className="btn btn-glow py-3 px-8 text-lg shadow-md"
+            href="/join" 
+            className="btn btn-secondary py-3 px-8 text-lg shadow-md"
           >
-            Start Quiz
+            Join a Quiz
           </Link>
         </motion.div>
       </motion.div>
