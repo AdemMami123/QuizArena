@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import Link from 'next/link';
@@ -12,9 +12,26 @@ import { getCustomQuizById, deserializeQuiz } from '@/utils/customQuizManager';
 
 const TIMER_DURATION = 30;
 
+// Component that safely accesses search params with proper suspense handling
+function SearchParamsProvider({ children }: { children: (searchParams: URLSearchParams) => React.ReactNode }) {
+  const searchParams = useSearchParams();
+  return <>{children(searchParams)}</>;
+}
+
+// Fallback component while the searchParams are loading
+function LoadingFallback() {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center p-6 bg-background">
+      <div className="bg-card text-card-foreground rounded-xl shadow-md p-8 max-w-md">
+        <h1 className="text-2xl font-bold mb-4">Loading Quiz...</h1>
+        <div className="animate-pulse">Please wait while we prepare your quiz...</div>
+      </div>
+    </main>
+  );
+}
+
 export default function Quiz() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   
   const [currentIndex, setCurrentIndex] = useState(0);
   const [score, setScore] = useState(0);
@@ -27,7 +44,91 @@ export default function Quiz() {
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>(defaultQuizQuestions);
   const [isCustomQuiz, setIsCustomQuiz] = useState(false);
   const [playerName, setPlayerName] = useState('');
+  
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <SearchParamsProvider>
+        {(searchParams) => <QuizContent 
+          searchParams={searchParams}
+          router={router}
+          currentIndex={currentIndex}
+          setCurrentIndex={setCurrentIndex}
+          score={score}
+          setScore={setScore}
+          timeLeft={timeLeft}
+          setTimeLeft={setTimeLeft}
+          timerActive={timerActive}
+          setTimerActive={setTimerActive}
+          feedback={feedback}
+          setFeedback={setFeedback}
+          startTime={startTime}
+          quizTitle={quizTitle}
+          setQuizTitle={setQuizTitle}
+          quizCreator={quizCreator}
+          setQuizCreator={setQuizCreator}
+          quizQuestions={quizQuestions}
+          setQuizQuestions={setQuizQuestions}
+          isCustomQuiz={isCustomQuiz}
+          setIsCustomQuiz={setIsCustomQuiz}
+          playerName={playerName}
+          setPlayerName={setPlayerName}
+        />}
+      </SearchParamsProvider>
+    </Suspense>
+  );
+}
 
+interface QuizContentProps {
+  searchParams: URLSearchParams;
+  router: ReturnType<typeof useRouter>;
+  currentIndex: number;
+  setCurrentIndex: React.Dispatch<React.SetStateAction<number>>;
+  score: number;
+  setScore: React.Dispatch<React.SetStateAction<number>>;
+  timeLeft: number;
+  setTimeLeft: React.Dispatch<React.SetStateAction<number>>;
+  timerActive: boolean;
+  setTimerActive: React.Dispatch<React.SetStateAction<boolean>>;
+  feedback: boolean | null;
+  setFeedback: React.Dispatch<React.SetStateAction<boolean | null>>;
+  startTime: number;
+  quizTitle: string;
+  setQuizTitle: React.Dispatch<React.SetStateAction<string>>;
+  quizCreator: string;
+  setQuizCreator: React.Dispatch<React.SetStateAction<string>>;
+  quizQuestions: QuizQuestion[];
+  setQuizQuestions: React.Dispatch<React.SetStateAction<QuizQuestion[]>>;
+  isCustomQuiz: boolean;
+  setIsCustomQuiz: React.Dispatch<React.SetStateAction<boolean>>;
+  playerName: string;
+  setPlayerName: React.Dispatch<React.SetStateAction<string>>;
+}
+
+function QuizContent({
+  searchParams,
+  router,
+  currentIndex,
+  setCurrentIndex,
+  score,
+  setScore,
+  timeLeft,
+  setTimeLeft,
+  timerActive,
+  setTimerActive,
+  feedback,
+  setFeedback,
+  startTime,
+  quizTitle,
+  setQuizTitle,
+  quizCreator,
+  setQuizCreator,
+  quizQuestions,
+  setQuizQuestions,
+  isCustomQuiz,
+  setIsCustomQuiz,
+  playerName,
+  setPlayerName
+}: QuizContentProps) {
   // Load quiz data (either default or custom)
   useEffect(() => {
     // Check if we're using a custom quiz from URL parameter
@@ -63,7 +164,7 @@ export default function Quiz() {
     if (storedPlayerName) {
       setPlayerName(storedPlayerName);
     }
-  }, [searchParams]);
+  }, [searchParams, setQuizQuestions, setQuizTitle, setQuizCreator, setIsCustomQuiz, setPlayerName]);
 
   const currentQuestion = quizQuestions[currentIndex];
 
@@ -76,7 +177,7 @@ export default function Quiz() {
         moveToNextQuestion();
       }, 2000);
     }
-  }, [timerActive]);
+  }, [timerActive, setTimerActive, setFeedback]);
 
   const handleAnswerSelected = useCallback((selectedOption: string) => {
     setTimerActive(false);
@@ -91,7 +192,7 @@ export default function Quiz() {
     setTimeout(() => {
       moveToNextQuestion();
     }, 2000);
-  }, [currentQuestion]);
+  }, [currentQuestion, setScore, setFeedback, setTimerActive]);
 
   const moveToNextQuestion = useCallback(() => {
     if (currentIndex < quizQuestions.length - 1) {
@@ -120,7 +221,7 @@ export default function Quiz() {
 
       router.push(`/result?${params.toString()}`);
     }
-  }, [currentIndex, router, score, startTime, quizQuestions.length, isCustomQuiz, quizTitle, quizCreator, playerName]);
+  }, [currentIndex, router, score, startTime, quizQuestions.length, isCustomQuiz, quizTitle, quizCreator, playerName, setCurrentIndex, setTimeLeft, setTimerActive, setFeedback]);
 
   useEffect(() => {
     let timerId: NodeJS.Timeout;
@@ -136,7 +237,7 @@ export default function Quiz() {
     return () => {
       if (timerId) clearTimeout(timerId);
     };
-  }, [timeLeft, timerActive, handleTimeUp]);
+  }, [timeLeft, timerActive, handleTimeUp, setTimeLeft]);
 
   const progressPercentage = (currentIndex / quizQuestions.length) * 100;
 

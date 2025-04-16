@@ -1,15 +1,45 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import Leaderboard from '@/components/Leaderboard';
 import { saveToLeaderboard } from '@/utils/leaderboardManager';
 
-export default function Result() {
+// Component that safely accesses search params with proper suspense handling
+function SearchParamsProvider({ children }: { children: (searchParams: URLSearchParams) => React.ReactNode }) {
   const searchParams = useSearchParams();
+  return <>{children(searchParams)}</>;
+}
+
+// Fallback component while the searchParams are loading
+function LoadingFallback() {
+  return (
+    <div className="flex justify-center items-center p-8">
+      <div className="animate-pulse">Loading results...</div>
+    </div>
+  );
+}
+
+export default function Result() {
   const router = useRouter();
+  
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <SearchParamsProvider>
+        {(searchParams) => <ResultContent searchParams={searchParams} router={router} />}
+      </SearchParamsProvider>
+    </Suspense>
+  );
+}
+
+interface ResultContentProps {
+  searchParams: URLSearchParams;
+  router: ReturnType<typeof useRouter>;
+}
+
+function ResultContent({ searchParams, router }: ResultContentProps) {
   const [score, setScore] = useState(0);
   const [total, setTotal] = useState(0);
   const [time, setTime] = useState(0);

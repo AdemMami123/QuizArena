@@ -1,20 +1,36 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { deserializeQuiz, getCustomQuizById, CustomQuiz } from '@/utils/customQuizManager';
 
-export default function JoinQuiz() {
-  const router = useRouter();
+// Component that safely accesses search params with proper suspense handling
+function SearchParamsProvider({ children }: { children: (searchParams: URLSearchParams) => React.ReactNode }) {
   const searchParams = useSearchParams();
+  return <>{children(searchParams)}</>;
+}
+
+// Fallback component while the searchParams are loading
+function LoadingFallback() {
+  return (
+    <div className="flex justify-center items-center p-8">
+      <div className="animate-pulse">Loading...</div>
+    </div>
+  );
+}
+
+// Inner component that has access to searchParams
+// This allows us to use hooks properly at the top level of a component
+function JoinQuizContent({ searchParams }: { searchParams: URLSearchParams }) {
+  const router = useRouter();
   const [quizCode, setQuizCode] = useState('');
   const [playerName, setPlayerName] = useState('');
   const [error, setError] = useState('');
   const [quiz, setQuiz] = useState<CustomQuiz | null>(null);
   
-  // Check for quiz data in URL on load
+  // Effect to check for quiz data in URL on component mount - now at the top level of component
   useEffect(() => {
     const serializedQuiz = searchParams.get('q');
     if (serializedQuiz) {
@@ -30,7 +46,7 @@ export default function JoinQuiz() {
       }
     }
   }, [searchParams]);
-
+  
   // Handle lookup of quiz by code
   const handleLookupQuiz = () => {
     if (!quizCode.trim()) {
@@ -74,6 +90,120 @@ export default function JoinQuiz() {
   };
 
   return (
+    <form onSubmit={handleJoinQuiz}>
+      <AnimatePresence mode="wait">
+        {error && (
+          <motion.div
+            className="bg-error/10 border border-error/30 text-error px-4 py-3 rounded-lg mb-6"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            {error}
+          </motion.div>
+        )}
+      </AnimatePresence>
+        
+      <AnimatePresence mode="wait">
+        {!quiz ? (
+          <motion.div
+            key="quiz-lookup"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="mb-6">
+              <label htmlFor="quizCode" className="block text-sm font-medium mb-2">
+                Enter Quiz Code
+              </label>
+              <div className="flex">
+                <input
+                  type="text"
+                  id="quizCode"
+                  className="flex-grow px-4 py-3 rounded-l-lg bg-secondary/50 border border-input focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  placeholder="Quiz code"
+                  value={quizCode}
+                  onChange={(e) => setQuizCode(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={handleLookupQuiz}
+                  className="bg-primary text-primary-foreground py-2 px-4 rounded-r-lg hover:bg-primary-hover transition-colors"
+                >
+                  Find
+                </button>
+              </div>
+              <p className="mt-2 text-sm text-secondary-foreground/70">
+                Enter the code provided by the quiz creator, or scan the QR code link
+              </p>
+            </div>
+            
+            <div className="flex justify-center">
+              <Link 
+                href="/quiz" 
+                className="btn btn-secondary py-2 px-4 text-center"
+              >
+                Try the Default Quiz Instead
+              </Link>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="join-form"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="mb-6 p-4 bg-secondary/30 rounded-lg">
+              <h2 className="text-lg font-bold">{quiz.title}</h2>
+              <p className="text-sm text-secondary-foreground/80">Created by: {quiz.createdBy}</p>
+              <p className="text-sm text-secondary-foreground/80">Questions: {quiz.questions.length}</p>
+            </div>
+            
+            <div className="mb-6">
+              <label htmlFor="playerName" className="block text-sm font-medium mb-2">
+                Your Name
+              </label>
+              <input
+                type="text"
+                id="playerName"
+                className="w-full px-4 py-3 rounded-lg bg-secondary/50 border border-input focus:outline-none focus:ring-2 focus:ring-primary/50"
+                placeholder="Enter your name"
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                maxLength={20}
+              />
+            </div>
+            
+            <div className="flex justify-between">
+              <button
+                type="button"
+                onClick={() => {
+                  setQuiz(null);
+                  setError('');
+                }}
+                className="btn btn-secondary py-2 px-4"
+              >
+                Back
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary py-2 px-6"
+              >
+                Start Quiz
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </form>
+  );
+}
+
+export default function JoinQuiz() {
+  return (
     <main className="flex min-h-screen flex-col items-center justify-center p-6 bg-background">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-accent/5 to-background"></div>
@@ -106,115 +236,11 @@ export default function JoinQuiz() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
         >
-          <AnimatePresence mode="wait">
-            {error && (
-              <motion.div
-                className="bg-error/10 border border-error/30 text-error px-4 py-3 rounded-lg mb-6"
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-              >
-                {error}
-              </motion.div>
-            )}
-          </AnimatePresence>
-          
-          <form onSubmit={handleJoinQuiz}>
-            <AnimatePresence mode="wait">
-              {!quiz ? (
-                <motion.div
-                  key="quiz-lookup"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <div className="mb-6">
-                    <label htmlFor="quizCode" className="block text-sm font-medium mb-2">
-                      Enter Quiz Code
-                    </label>
-                    <div className="flex">
-                      <input
-                        type="text"
-                        id="quizCode"
-                        className="flex-grow px-4 py-3 rounded-l-lg bg-secondary/50 border border-input focus:outline-none focus:ring-2 focus:ring-primary/50"
-                        placeholder="Quiz code"
-                        value={quizCode}
-                        onChange={(e) => setQuizCode(e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        onClick={handleLookupQuiz}
-                        className="bg-primary text-primary-foreground py-2 px-4 rounded-r-lg hover:bg-primary-hover transition-colors"
-                      >
-                        Find
-                      </button>
-                    </div>
-                    <p className="mt-2 text-sm text-secondary-foreground/70">
-                      Enter the code provided by the quiz creator, or scan the QR code link
-                    </p>
-                  </div>
-                  
-                  <div className="flex justify-center">
-                    <Link 
-                      href="/quiz" 
-                      className="btn btn-secondary py-2 px-4 text-center"
-                    >
-                      Try the Default Quiz Instead
-                    </Link>
-                  </div>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="join-form"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <div className="mb-6 p-4 bg-secondary/30 rounded-lg">
-                    <h2 className="text-lg font-bold">{quiz.title}</h2>
-                    <p className="text-sm text-secondary-foreground/80">Created by: {quiz.createdBy}</p>
-                    <p className="text-sm text-secondary-foreground/80">Questions: {quiz.questions.length}</p>
-                  </div>
-                  
-                  <div className="mb-6">
-                    <label htmlFor="playerName" className="block text-sm font-medium mb-2">
-                      Your Name
-                    </label>
-                    <input
-                      type="text"
-                      id="playerName"
-                      className="w-full px-4 py-3 rounded-lg bg-secondary/50 border border-input focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      placeholder="Enter your name"
-                      value={playerName}
-                      onChange={(e) => setPlayerName(e.target.value)}
-                      maxLength={20}
-                    />
-                  </div>
-                  
-                  <div className="flex justify-between">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setQuiz(null);
-                        setError('');
-                      }}
-                      className="btn btn-secondary py-2 px-4"
-                    >
-                      Back
-                    </button>
-                    <button
-                      type="submit"
-                      className="btn btn-primary py-2 px-6"
-                    >
-                      Start Quiz
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </form>
+          <Suspense fallback={<LoadingFallback />}>
+            <SearchParamsProvider>
+              {(searchParams) => <JoinQuizContent searchParams={searchParams} />}
+            </SearchParamsProvider>
+          </Suspense>
         </motion.div>
       </div>
     </main>
