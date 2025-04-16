@@ -7,10 +7,12 @@ import Link from 'next/link';
 import Question from '@/components/Question';
 import Timer from '@/components/Timer';
 import Feedback from '@/components/Feedback';
-import defaultQuizQuestions, { QuizQuestion } from '@/data/quizQuestions';
+import defaultQuizQuestions, { QuizQuestion, getRandomQuestions } from '@/data/quizQuestions';
 import { getCustomQuizById, deserializeQuiz } from '@/utils/customQuizManager';
 
 const TIMER_DURATION = 30;
+// Number of questions to use in the quiz
+const QUESTIONS_PER_QUIZ = 10;
 
 // Component that safely accesses search params with proper suspense handling
 function SearchParamsProvider({ children }: { children: (searchParams: URLSearchParams) => React.ReactNode }) {
@@ -157,6 +159,11 @@ function QuizContent({
           setIsCustomQuiz(true);
         }
       }
+    }
+    // If not a custom quiz, load random questions from the default set
+    else {
+      // Get random questions when using the default quiz
+      setQuizQuestions(getRandomQuestions(QUESTIONS_PER_QUIZ));
     }
     
     // Get player name from local storage if available

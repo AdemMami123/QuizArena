@@ -79,7 +79,7 @@ export default function Home() {
         animate="visible"
       >
         <motion.h1 
-          className="text-4xl font-bold mb-6 bg-gradient-to-r from-gradient-1 via-gradient-2 to-gradient-3 text-transparent bg-clip-text"
+          className="text-4xl font-bold mb-6 bg-gradient-to-r from-gradient-1 via-gradient-2 to-gradient-3  bg-clip-text"
           variants={itemVariants}
         >
           Timed Quiz Challenge
